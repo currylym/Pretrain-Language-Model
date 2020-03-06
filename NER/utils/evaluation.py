@@ -13,7 +13,7 @@ def dict2char(dic):
         out.append(key+'='+str(value))
     return '|'.join(out)
 
-def f1_score(sentences, targets, predictions, f1_type='micro', eps=1e-9):
+def f1_score(sentences, targets, predictions, sentences1=None, f1_type='micro', eps=1e-9):
 
     '''
     params:
@@ -25,15 +25,17 @@ def f1_score(sentences, targets, predictions, f1_type='micro', eps=1e-9):
     '''
 
     # check input
-    for sentence, target, prediction in zip(sentences, targets, predictions):
-        assert len(sentence) == len(target) == len(prediction), print('input error!\n', sentence, target, prediction)
+    if not sentences1:sentences1 = sentences
+    for sentence, target, sentence1, prediction in zip(sentences, targets,
+            sentences1, predictions):
+        assert len(sentence) == len(target) and len(sentence1) == len(prediction), print('input error!\n', sentence, target, prediction)
 
     all_TP, all_FN, all_FP = 0, 0, 0
     macro_f1 = 0
-    for sentence, target, prediction in zip(sentences, targets, predictions):
+    for sentence, sentence1, target, prediction in zip(sentences, sentences1, targets, predictions):
         
         true_entity = BIO_decoder(sentence, target)
-        pred_entity = BIO_decoder(sentence, prediction)
+        pred_entity = BIO_decoder(sentence1, prediction)
 
         true_entity = [dict2char(i) for i in true_entity]
         pred_entity = [dict2char(i) for i in pred_entity]
@@ -60,6 +62,22 @@ def f1_score(sentences, targets, predictions, f1_type='micro', eps=1e-9):
     else:
         return macro_f1 / len(sentences)
 
+def f1_score_from_path(sentences_path, targets_path, predictions_path, sentences1_path,
+        **kwargs):
+
+    def _read_data(path):
+        data = open(path, 'r').read().split('\n')
+        data = [i.split() for i in data]
+        return data
+
+    if not sentences1_path:sentences1_path = sentences_path
+    sentences = _read_data(sentences_path)
+    targets = _read_data(targets_path)
+    sentences1 = _read_data(sentences1_path)
+    predictions = _read_data(predictions_path)
+
+    return f1_score(sentences, targets, predictions, sentences1, **kwargs)
+
 if __name__ == '__main__':
     path1 = '../msra/train/sentences.txt'
     path2 = '../msra/train/tags.txt'
@@ -68,3 +86,6 @@ if __name__ == '__main__':
     sentences, targets = [i.split() for i in sentences], [i.split() for i in targets]
     print('micro-f1:', f1_score(sentences, targets, targets, f1_type='micro'))
     print('macro-f1:', f1_score(sentences, targets, targets, f1_type='macro'))
+
+    print('micro_f1:', f1_score_from_path(path1, path2, path2, path1, f1_type='micro'))
+    print('macro_f1:', f1_score_from_path(path1, path2, path2, path1,f1_type='macro'))
